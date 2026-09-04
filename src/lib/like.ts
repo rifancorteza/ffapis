@@ -62,7 +62,7 @@ export class LikeAPI {
         return {
           jwt: decoded.token,
           serverUrl: decoded.serverUrl || '',
-          accountId: decoded.accountid
+          accountId: decoded.accountId
         };
       }
       return null;

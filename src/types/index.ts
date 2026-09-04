@@ -22,7 +22,7 @@ export interface GarenaGuestRegisterResponse {
 export interface MajorLoginResponse {
   token: string;
   serverUrl: string;
-  accountid: string;
+  accountId: string;
 }
 
 export interface SearchResult {

@@ -128,7 +128,7 @@ export class FreeFireAPI {
     this.session.token = loginData.token;
     this.session.serverUrl = loginData.serverUrl;
     this.session.openId = garenaData.open_id;
-    this.session.accountId = loginData.accountid;
+    this.session.accountId = loginData.accountId;
 
     return this.session;
   }
@@ -442,7 +442,7 @@ export class FreeFireAPI {
           Authorization: `Bearer ${accessToken}`,
           'X-Unity-Version': '2018.4.11f1',
           'X-GA': 'v1 1',
-          ReleaseVersion: 'OB53',
+          ReleaseVersion: HEADERS.COMMON['ReleaseVersion'],
           'Content-Type': 'application/octet-stream',
           'User-Agent': HEADERS.GARENA_AUTH['User-Agent'],
           Host: 'loginbp.ggblueshark.com',
