@@ -111,16 +111,19 @@ message response {
     uint32 ttl = 9;
     string serverUrl = 10;
     uint32 emulatorScore = 11;
-    BlacklistInfoRes blacklist = 12;
-    LoginQueueInfo queueInfo = 13;
-    string tpUrl = 14;
-    uint32 appServerId = 15;
+    uint32 appServerId = 12;
+    string tpUrl = 13;
+    BlacklistInfoRes blacklist = 15;
     string ipCity = 16;
     string ipSubdivision = 17;
     uint32 kts = 18;
-    bytes ak = 19;
-    bytes aiv = 20;
-    string ffantiUrl = 21;
+    string ipCityDetail = 19;
+    string ipSubdivisionDetail = 20;
+    uint32 ktsDetail = 21;
+    bytes ak = 22;
+    bytes aiv = 23;
+    string ffantiUrl = 24;
+    bytes ffantiDetail = 25;
 }
 
 
