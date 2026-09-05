@@ -1,14 +1,22 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { protoHandler } from './protobuf';
-import { AE, HEADERS, URLS, GARENA_CLIENT } from './constants';
+import { AE, HEADERS, URLS, GARENA_CLIENT, getCommonHeaders, resolveObVersion, normalizeObVersion } from './constants';
 import { processPlayerItems } from './utils';
 import { CredentialManager } from './credential-manager';
 import fs from 'fs';
 import path from 'path';
-import type { Session, GarenaTokenResponse, GarenaGuestRegisterResponse, MajorLoginResponse, SearchResult, RegisterResult, ProcessedPlayerItems, PlayerProfile, PlayerStats } from '@/types';
+import type { Session, GarenaTokenResponse, GarenaGuestRegisterResponse, MajorLoginResponse, SearchResult, RegisterResult, ProcessedPlayerItems, PlayerProfile, PlayerStats, FreeFireAPIOptions } from '@/types';
 import { getErrorMessage } from '@/types';
 import { resolveProjectDir } from './resolve-path';
+
+type ObVersionParam = string | number | { obVersion?: string | number | null } | null | undefined;
+
+function parseObArg(arg: ObVersionParam): string | null {
+  if (arg === undefined || arg === null) return null;
+  if (typeof arg === 'object') return normalizeObVersion((arg as { obVersion?: string | number | null }).obVersion);
+  return normalizeObVersion(arg as string | number);
+}
 
 /**
  * Main API client for interacting with the Free Fire game servers.
@@ -18,16 +26,45 @@ export class FreeFireAPI {
   public session: Session;
   public region: string | null;
   public credentialManager: CredentialManager | null;
+  public obVersion: string | null = null;
   private allCredentials: Array<{ uid: string; password: string }> | null = null;
 
   /**
    * Creates a new FreeFireAPI instance.
    * @param region - Optional region code (e.g., 'IND', 'BR') to scope credential lookup.
+   * @param options - Optional instance options or OB string. Example: `new FreeFireAPI(null, { obVersion: 'OB55' })`
+   *   or `new FreeFireAPI('IND', 'OB55')`. When omitted, OB falls back to `config/settings.yaml` (or `FF_OB_VERSION` env).
+   *   Per-request `obVersion` param always wins over this instance value — useful when the bundled
+   *   library is outdated but you already know the newest OB.
    */
-  constructor(region: string | null = null) {
+  constructor(region: string | null = null, options?: FreeFireAPIOptions | string | null) {
     this.session = { token: null, serverUrl: null, openId: null, accountId: null };
     this.region = region;
     this.credentialManager = region ? new CredentialManager(region) : null;
+    if (typeof options === 'string') {
+      this.obVersion = normalizeObVersion(options);
+    } else if (options && typeof options === 'object') {
+      this.obVersion = normalizeObVersion(options.obVersion);
+    }
+  }
+
+  /**
+   * Set instance-level OB override (e.g. `api.setObVersion('OB55')`).
+   * Pass `null` to clear and fall back to `config/settings.yaml` / env.
+   */
+  setObVersion(version: string | number | null): void {
+    this.obVersion = normalizeObVersion(version);
+  }
+
+  /**
+   * Get effective OB version (instance override > env > settings.yaml default).
+   */
+  getObVersion(): string {
+    return resolveObVersion(null, this.obVersion);
+  }
+
+  private _headers(requestOb?: ObVersionParam): Record<string, string> {
+    return getCommonHeaders(parseObArg(requestOb), this.obVersion);
   }
 
   /**
@@ -87,42 +124,45 @@ export class FreeFireAPI {
 
   /**
    * Logs in using a random credential from any available region pool.
+   * @param obVersion - Optional OB override for this request only (e.g. 'OB55'). Falls back to instance/env/default.
    * @returns A valid session containing token, server URL, and account details.
    */
-  async loginWithRandomCredentialFromAll(): Promise<Session> {
+  async loginWithRandomCredentialFromAll(obVersion?: ObVersionParam): Promise<Session> {
     const cred = this._getRandomCredentialFromAll();
     console.log(`[API] Using random credential from all regions: ${cred.uid}`);
-    return this.login(cred.uid, cred.password);
+    return this.login(cred.uid, cred.password, obVersion);
   }
 
   /**
    * Logs in using a random credential from the currently set region pool.
    * Falls back to all-region lookup if no region is configured.
+   * @param obVersion - Optional OB override for this request only.
    * @returns A valid session containing token, server URL, and account details.
    */
-  async loginWithRandomCredential(): Promise<Session> {
+  async loginWithRandomCredential(obVersion?: ObVersionParam): Promise<Session> {
     if (!this.credentialManager) {
-      return this.loginWithRandomCredentialFromAll();
+      return this.loginWithRandomCredentialFromAll(obVersion);
     }
     const cred = this.credentialManager.getRandomCredential();
     if (!cred) throw new Error(`No credentials available in pool for region ${this.region}`);
     console.log(`[API] Using random credential from ${this.region}: ${cred.uid}`);
-    return this.login(cred.uid, cred.password);
+    return this.login(cred.uid, cred.password, obVersion);
   }
 
   /**
    * Authenticates with a specific UID and password.
    * @param uid - Garena account UID.
    * @param password - Account password.
+   * @param obVersion - Optional OB override for this login only (e.g. 'OB55').
    * @returns A valid session containing token, server URL, and account details.
    */
-  async login(uid: string, password: string): Promise<Session> {
+  async login(uid: string, password: string, obVersion?: ObVersionParam): Promise<Session> {
     if (!uid || !password) throw new Error('Missing credentials. Please provide UID and PASSWORD to login(uid, password).');
 
     const garenaData = await this._getGarenaToken(uid, password);
     if (!garenaData?.access_token) throw new Error('Garena authentication failed: Invalid credentials or response');
 
-    const loginData = await this._majorLogin(garenaData.access_token, garenaData.open_id);
+    const loginData = await this._majorLogin(garenaData.access_token, garenaData.open_id, obVersion);
     if (!loginData?.token) throw new Error('Major login failed: Empty token received');
 
     this.session.token = loginData.token;
@@ -150,14 +190,14 @@ export class FreeFireAPI {
     }
   }
 
-  private async _majorLogin(accessToken: string, openId: string): Promise<MajorLoginResponse> {
+  private async _majorLogin(accessToken: string, openId: string, obVersion?: ObVersionParam): Promise<MajorLoginResponse> {
     const payload = { openid: openId, logintoken: accessToken, platform: '4' };
     const encryptedBody = await protoHandler.encode('MajorLogin.proto', 'request', payload, true);
 
     try {
       const response = await axios.post(URLS.MAJOR_LOGIN, encryptedBody, {
         headers: {
-          ...HEADERS.COMMON,
+          ...this._headers(obVersion),
           Authorization: 'Bearer',
           'Content-Type': 'application/octet-stream'
         },
@@ -174,11 +214,12 @@ export class FreeFireAPI {
   /**
    * Searches for players by nickname across Free Fire servers.
    * @param keyword - Player nickname to search (minimum 3 characters).
+   * @param obVersion - Optional OB override for this request only (e.g. 'OB55').
    * @returns Array of matching player results.
    */
-  async searchAccount(keyword: string): Promise<SearchResult[]> {
-    if (!this.session.token) await this.loginWithRandomCredential();
-    if (keyword.length < 3) throw new Error('Search keyword must be at least 3 characters long.');
+  async searchAccount(keyword: string, obVersion?: ObVersionParam): Promise<SearchResult[]> {
+    if (!keyword || keyword.length < 3) throw new Error('Search keyword must be at least 3 characters long.');
+    if (!this.session.token) await this.loginWithRandomCredential(obVersion);
 
     const payload = { keyword: String(keyword) };
     const encryptedBody = await protoHandler.encode('SearchAccountByName.proto', 'SearchAccountByName.request', payload, true);
@@ -187,7 +228,7 @@ export class FreeFireAPI {
     try {
       const response = await axios.post(url, encryptedBody, {
         headers: {
-          ...HEADERS.COMMON,
+          ...this._headers(obVersion),
           Authorization: `Bearer ${this.session.token}`,
           'Content-Type': 'application/x-www-form-urlencoded'
         },
@@ -204,14 +245,15 @@ export class FreeFireAPI {
   /**
    * Retrieves detailed profile information for a player.
    * @param uid - Target player UID.
+   * @param obVersion - Optional OB override for this request only (e.g. 'OB55').
    * @returns Structured player profile including basic info, clan, and pet data.
    */
-  async getPlayerProfile(uid: number | string): Promise<PlayerProfile> {
-    return this._requestProfile(uid, false);
+  async getPlayerProfile(uid: number | string, obVersion?: ObVersionParam): Promise<PlayerProfile> {
+    return this._requestProfile(uid, false, obVersion);
   }
 
-  private async _requestProfile(uid: number | string, isRetry: boolean): Promise<PlayerProfile> {
-    await this._checkSession();
+  private async _requestProfile(uid: number | string, isRetry: boolean, obVersion?: ObVersionParam): Promise<PlayerProfile> {
+    await this._checkSession(obVersion);
 
     const payload = { accountId: Number(uid), callSignSrc: 7, needGalleryInfo: true };
     const encryptedBody = await protoHandler.encode('PlayerPersonalShow.proto', 'request', payload, true);
@@ -219,7 +261,7 @@ export class FreeFireAPI {
 
     try {
       const response = await axios.post(url, encryptedBody, {
-        headers: { ...HEADERS.COMMON, Authorization: `Bearer ${this.session.token}` },
+        headers: { ...this._headers(obVersion), Authorization: `Bearer ${this.session.token}` },
         responseType: 'arraybuffer',
         timeout: 30000
       });
@@ -229,8 +271,8 @@ export class FreeFireAPI {
       const status = axios.isAxiosError(error) ? error.response?.status : 0;
       if (!isRetry && (status === 400 || status === 401)) {
         this.session.token = null;
-        await this._checkSession();
-        return this._requestProfile(uid, true);
+        await this._checkSession(obVersion);
+        return this._requestProfile(uid, true, obVersion);
       }
       throw new Error(`Get Profile Failed: ${getErrorMessage(error)}`);
     }
@@ -239,10 +281,11 @@ export class FreeFireAPI {
   /**
    * Fetches and processes a player's equipped items (outfit, weapons, skills, pet).
    * @param uid - Target player UID.
+   * @param obVersion - Optional OB override for this request only.
    * @returns Normalized item details mapped from the internal items database.
    */
-  async getPlayerItems(uid: number | string): Promise<ProcessedPlayerItems | null> {
-    const profile = await this.getPlayerProfile(uid);
+  async getPlayerItems(uid: number | string, obVersion?: ObVersionParam): Promise<ProcessedPlayerItems | null> {
+    const profile = await this.getPlayerProfile(uid, obVersion);
     if (!profile) return null;
     return processPlayerItems(profile);
   }
@@ -252,10 +295,11 @@ export class FreeFireAPI {
    * @param uid - Target player UID.
    * @param mode - Game mode: 'br' (Battle Royale) or 'cs' (Clash Squad).
    * @param matchType - Match type: 'career', 'ranked', or 'normal'.
+   * @param obVersion - Optional OB override for this request only (e.g. 'OB55').
    * @returns Structured stats object for solo, duo, and squad matches.
    */
-  async getPlayerStats(uid: number | string, mode: 'br' | 'cs' = 'br', matchType: 'career' | 'ranked' | 'normal' = 'career'): Promise<PlayerStats> {
-    if (!this.session.token) await this.loginWithRandomCredential();
+  async getPlayerStats(uid: number | string, mode: 'br' | 'cs' = 'br', matchType: 'career' | 'ranked' | 'normal' = 'career', obVersion?: ObVersionParam): Promise<PlayerStats> {
+    if (!this.session.token) await this.loginWithRandomCredential(obVersion);
 
     const modeLower = mode.toLowerCase();
     const typeUpper = matchType.toUpperCase();
@@ -284,7 +328,7 @@ export class FreeFireAPI {
 
     try {
       const response = await axios.post(url, encryptedBody, {
-        headers: { ...HEADERS.COMMON, Authorization: `Bearer ${this.session.token}` },
+        headers: { ...this._headers(obVersion), Authorization: `Bearer ${this.session.token}` },
         responseType: 'arraybuffer',
         timeout: 30000
       });
@@ -295,9 +339,9 @@ export class FreeFireAPI {
     }
   }
 
-  private async _checkSession(): Promise<void> {
+  private async _checkSession(obVersion?: ObVersionParam): Promise<void> {
     if (!this.session.token || !this.session.serverUrl) {
-      await this.loginWithRandomCredentialFromAll();
+      await this.loginWithRandomCredentialFromAll(obVersion);
     }
   }
 
@@ -305,9 +349,10 @@ export class FreeFireAPI {
    * Registers a new guest account in the specified region.
    * @param region - Target region code (e.g., 'IND').
    * @param nickname - Optional nickname; a random one is generated if omitted.
+   * @param obVersion - Optional OB override for this request only (e.g. 'OB55').
    * @returns Registration result containing UID, password, and region.
    */
-  async register(region: string, nickname: string | null = null): Promise<RegisterResult> {
+  async register(region: string, nickname: string | null = null, obVersion?: ObVersionParam): Promise<RegisterResult> {
     const password = this._generateRandomPassword();
     const passwordHash = crypto.createHash('sha256').update(password).digest('hex').toUpperCase();
 
@@ -318,7 +363,7 @@ export class FreeFireAPI {
     if (!garenaData?.access_token) throw new Error('Token grant failed after registration');
 
     const autoNickname = nickname || `senos${Math.floor(Math.random() * 9999) + 1}`;
-    const registerData = await this._majorRegister(autoNickname, garenaData.access_token, garenaData.open_id, region);
+    const registerData = await this._majorRegister(autoNickname, garenaData.access_token, garenaData.open_id, region, obVersion);
 
     if (!registerData.success) throw new Error(`Major registration failed: ${registerData.error || 'Unknown error'}`);
 
@@ -417,7 +462,7 @@ export class FreeFireAPI {
     return Buffer.concat(parts);
   }
 
-  private async _majorRegister(nickname: string, accessToken: string, openId: string, region: string): Promise<{ success: boolean; error?: string }> {
+  private async _majorRegister(nickname: string, accessToken: string, openId: string, region: string, obVersion?: ObVersionParam): Promise<{ success: boolean; error?: string }> {
     const encryptedOpenId = this._xorEncryptOpenId(openId);
     const payload: Record<number, number | string | Buffer> = {
       1: nickname,
@@ -435,14 +480,15 @@ export class FreeFireAPI {
     const protoBytes = this._manualProtobufEncode(payload);
     const { encrypt } = await import('./crypto');
     const encryptedBody = encrypt(protoBytes);
+    const headers = this._headers(obVersion);
 
     try {
       const response = await axios.post(URLS.MAJOR_REGISTER, encryptedBody, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
-          'X-Unity-Version': '2018.4.11f1',
-          'X-GA': 'v1 1',
-          ReleaseVersion: HEADERS.COMMON['ReleaseVersion'],
+          'X-Unity-Version': headers['X-Unity-Version'] || '2018.4.11f1',
+          'X-GA': headers['X-GA'] || 'v1 1',
+          ReleaseVersion: headers['ReleaseVersion'],
           'Content-Type': 'application/octet-stream',
           'User-Agent': HEADERS.GARENA_AUTH['User-Agent'],
           Host: 'loginbp.ggblueshark.com',

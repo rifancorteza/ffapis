@@ -1,6 +1,6 @@
 {
   "name": "ffapis",
-  "version": "1.5.2",
+  "version": "1.6.0",
   "description": "A powerful TypeScript/Node.js library to interact with Garena Free Fire API using Protobuf.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -35,6 +35,8 @@
     "test:stats": "node dist/test/stats.js",
     "test:items": "node dist/test/items.js",
     "test:like": "node dist/test/like.js",
+    "test:ob": "node dist/test/ob-version.js",
+    "test:ob:live": "node dist/test/ob-version.js --live",
     "test:groq-ai": "node dist/test/groq-ai-tool-calling.js",
     "prepublishOnly": "npm run build"
   },

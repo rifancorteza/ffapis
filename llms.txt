@@ -1,43 +1,59 @@
-# LLM Context for ffapis
+# LLM Context for ffapis (v1.6.0, verified 5 September 2026, default OB54)
 
 ## Library Overview
 TypeScript/Node.js library to interact with Free Fire mobile game API using Protobuf + AES encryption. Auto-manages guest credentials from `config/credentials/{region}.yaml`.
+
+## OB Override (v1.6.0+)
+Library default OB comes from `config/settings.yaml` (`HEADERS_COMMON_RELEASE_VERSION`, currently OB54),
+but every request can override it so an outdated library still works:
+```ts
+await api.searchAccount('nick', 'OB55'); // "55"/"ob55" auto-normalized to "OB55"
+const api55 = new FreeFireAPI(null, { obVersion: 'OB55' });
+api55.setObVersion('OB55'); api55.getObVersion();
+await like.sendLikes(uid, 'IND', 100, 'OB55');
+new FreeFireAIToolHandler({ obVersion: 'OB55' });
+// env (no code change): FF_OB_VERSION / FFAPIS_OB_VERSION / FFAPIS_OB
+```
+Priority: request > instance > env > settings.yaml. Helpers: `DEFAULT_OB_VERSION`, `normalizeObVersion`, `resolveObVersion`, `getCommonHeaders`.
 
 ## Key Classes
 
 ### FreeFireAPI
 ```ts
-const api = new FreeFireAPI(region?);
+const api = new FreeFireAPI(region?, { obVersion?: string });
+// or: new FreeFireAPI(region?, 'OB55')
 
-api.searchAccount(keyword: string)           // -> SearchResult[]
-api.getPlayerProfile(uid: string | number)   // -> PlayerProfile
-api.getPlayerItems(uid: string | number)       // -> ProcessedPlayerItems | null
-api.getPlayerStats(uid, mode, matchType)     // -> PlayerStats (mode: 'br'|'cs', matchType: 'career'|'ranked'|'normal')
-api.register(region: string, nickname?)       // -> RegisterResult
-api.login(uid, password)                      // internal use
+api.searchAccount(keyword: string, obVersion?)           // -> SearchResult[]
+api.getPlayerProfile(uid: string | number, obVersion?)   // -> PlayerProfile
+api.getPlayerItems(uid: string | number, obVersion?)       // -> ProcessedPlayerItems | null
+api.getPlayerStats(uid, mode, matchType, obVersion?)     // -> PlayerStats (mode: 'br'|'cs', matchType: 'career'|'ranked'|'normal')
+api.register(region: string, nickname?, obVersion?)       // -> RegisterResult
+api.login(uid, password, obVersion?)                      // internal use
+api.setObVersion('OB55'); api.getObVersion();
 ```
 
 ### LikeAPI
 ```ts
-const like = new LikeAPI();
-like.sendLikes(targetUid: string, region: string, likeCount: number) // -> LikeResult
+const like = new LikeAPI({ obVersion?: string });
+like.sendLikes(targetUid: string, region: string, likeCount?: number | { likeCount?, obVersion? }, obVersion?) // -> LikeResult
+like.setObVersion('OB55'); like.getObVersion();
 ```
 
 ### FreeFireAIToolHandler
 ```ts
-const handler = new FreeFireAIToolHandler({ region? });
+const handler = new FreeFireAIToolHandler({ region?, obVersion?: string });
 handler.execute(toolCall: AIToolCall)         // single tool
 handler.executeMany(toolCalls: AIToolCall[])  // batch
 ```
 
 ## AI Tool Schemas (freefireTools)
-Export from `src/index.ts`:
-- `search_player` — { keyword: string }
-- `get_player_profile` — { uid: string }
-- `get_player_items` — { uid: string }
-- `get_player_stats` — { uid: string, mode?: 'br'|'cs', matchType?: 'career'|'ranked'|'normal' }
-- `send_likes` — { targetUid: string, region: string, likeCount?: number }
-- `register_account` — { region: string, nickname?: string }
+Export from `src/index.ts` (semua punya `obVersion` opsional):
+- `search_player` — { keyword: string, obVersion?: string }
+- `get_player_profile` — { uid: string, obVersion?: string }
+- `get_player_items` — { uid: string, obVersion?: string }
+- `get_player_stats` — { uid: string, mode?: 'br'|'cs', matchType?: 'career'|'ranked'|'normal', obVersion?: string }
+- `send_likes` — { targetUid: string, region: string, likeCount?: number, obVersion?: string }
+- `register_account` — { region: string, nickname?: string, obVersion?: string }
 
 ## Project Structure
 ```

@@ -6,6 +6,7 @@ export { encrypt } from './lib/crypto';
 export { getItemDetails, processPlayerItems, loadItems } from './lib/utils';
 export { freefireTools, getToolByName, getToolNames } from './lib/ai-tools';
 export { FreeFireAIToolHandler } from './lib/ai-handler';
+export { DEFAULT_OB_VERSION, normalizeObVersion, resolveObVersion, getCommonHeaders } from './lib/constants';
 export type { AITool, AIToolParameters, AIToolParameterProperty } from './lib/ai-tools';
 export type { AIToolCall, AIToolCallResult, AIHandlerOptions } from './lib/ai-handler';
 export * from './types';

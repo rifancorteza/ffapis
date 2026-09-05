@@ -6,11 +6,16 @@ When Free Fire updates to a new Operation Bundle (OB), update `HEADERS_COMMON_RE
 
 ```yaml
 # Before
-HEADERS_COMMON_RELEASE_VERSION: "OB53"
+HEADERS_COMMON_RELEASE_VERSION: "OB54"
 
 # After OB update (example)
-HEADERS_COMMON_RELEASE_VERSION: "OB54"
+HEADERS_COMMON_RELEASE_VERSION: "OB55"
 ```
+
+> **v1.6.0+:** pengguna tidak wajib menunggu update ini. Mereka bisa override per-request
+> (`api.searchAccount('nick', 'OB55')`), per-instance (`new FreeFireAPI(null, { obVersion: 'OB55' })`),
+> atau via env (`FF_OB_VERSION=OB55`). Lihat `docs/api-reference.md`.
+> Update `settings.yaml` tetap disarankan agar default selalu baru.
 
 No code changes needed unless Garena changes auth flow, protobuf schemas, or API endpoints.
 

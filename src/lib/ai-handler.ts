@@ -21,15 +21,19 @@ export interface AIToolCallResult {
 
 export interface AIHandlerOptions {
   region?: string;
+  /** Default OB override for all tool calls handled by this instance (e.g. 'OB55'). Per-tool `obVersion` arg wins. */
+  obVersion?: string | null;
 }
 
 export class FreeFireAIToolHandler {
   private api: FreeFireAPI;
   private likeApi: LikeAPI;
+  private defaultObVersion: string | null;
 
   constructor(options: AIHandlerOptions = {}) {
-    this.api = new FreeFireAPI(options.region || null);
-    this.likeApi = new LikeAPI();
+    this.defaultObVersion = options.obVersion ?? null;
+    this.api = new FreeFireAPI(options.region || null, { obVersion: this.defaultObVersion });
+    this.likeApi = new LikeAPI({ obVersion: this.defaultObVersion });
   }
 
   async execute(toolCall: AIToolCall): Promise<AIToolCallResult> {
@@ -63,10 +67,11 @@ export class FreeFireAIToolHandler {
   }
 
   private async _dispatch(name: string, args: Record<string, unknown>): Promise<unknown> {
+    const obVersion = typeof args.obVersion === 'string' || typeof args.obVersion === 'number' ? String(args.obVersion) : undefined;
     switch (name) {
       case 'search_player': {
         const keyword = String(args.keyword);
-        const results = await this.api.searchAccount(keyword);
+        const results = await this.api.searchAccount(keyword, obVersion);
         return results.map((r: SearchResult) => ({
           accountid: r.accountid,
           nickname: r.nickname,
@@ -75,12 +80,12 @@ export class FreeFireAIToolHandler {
       }
 
       case 'get_player_profile': {
-        const profile = await this.api.getPlayerProfile(String(args.uid));
+        const profile = await this.api.getPlayerProfile(String(args.uid), obVersion);
         return this._sanitizeProfile(profile);
       }
 
       case 'get_player_items': {
-        const items = await this.api.getPlayerItems(String(args.uid));
+        const items = await this.api.getPlayerItems(String(args.uid), obVersion);
         return items;
       }
 
@@ -88,7 +93,8 @@ export class FreeFireAIToolHandler {
         const stats = await this.api.getPlayerStats(
           String(args.uid),
           (args.mode as 'br' | 'cs') || 'br',
-          (args.matchType as 'career' | 'ranked' | 'normal') || 'career'
+          (args.matchType as 'career' | 'ranked' | 'normal') || 'career',
+          obVersion
         );
         return stats;
       }
@@ -97,7 +103,8 @@ export class FreeFireAIToolHandler {
         const result = await this.likeApi.sendLikes(
           String(args.targetUid),
           String(args.region),
-          args.likeCount ? Number(args.likeCount) : 100
+          args.likeCount ? Number(args.likeCount) : 100,
+          obVersion
         );
         return this._sanitizeLikeResult(result);
       }
@@ -105,7 +112,8 @@ export class FreeFireAIToolHandler {
       case 'register_account': {
         const result = await this.api.register(
           String(args.region),
-          args.nickname ? String(args.nickname) : null
+          args.nickname ? String(args.nickname) : null,
+          obVersion
         );
         return this._sanitizeRegisterResult(result);
       }

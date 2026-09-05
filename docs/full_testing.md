@@ -1,6 +1,66 @@
 # Full Testing
 
-**Date:** 17 Mei 2026, 01:45 WITA
+**Date:** 5 September 2026
+**Version:** `v1.6.0` (fitur OB spesifik per-request)
+**Default OB:** `OB54` (`config/settings.yaml`)
+
+---
+
+## 0. OB-Version Override Test (Baru v1.6.0)
+
+```bash
+npm run test:ob
+npm run test:ob:live
+# atau: node dist/test/ob-version.js --live
+```
+
+### Results — 5 September 2026
+
+| Check | Status |
+|-------|--------|
+| normalize / resolve / headers / env priority | ✅ 15/15 pass |
+| `FreeFireAPI` instance (`ctor`, `setObVersion`, `getObVersion`) | ✅ pass |
+| `LikeAPI` instance (`ctor`, `setObVersion`, `getObVersion`) | ✅ pass |
+| AI tools schema `obVersion` (6 tools) | ✅ pass |
+| `FreeFireAIToolHandler({ obVersion })` | ✅ pass |
+| Live search dengan OB eksplisit `OB54` (`folaa` → 10 players, top `Folaa 16778836`) | ✅ pass |
+
+**Total: 32/32 pass (unit) + live pass.**
+
+Contoh pakai:
+
+```ts
+await api.searchAccount('FannBot', 'OB55'); // library OB54 tetap bisa request OB55
+const api55 = new FreeFireAPI(null, { obVersion: 'OB55' });
+FF_OB_VERSION=OB55 npm test // tanpa ubah kode
+```
+
+---
+
+## Re-verifikasi 5 September 2026 (Non-AI 6/6 + AI)
+
+```bash
+npm run build
+node dist/test/login.js
+node dist/test/search.js
+node dist/test/profile.js   # UID 12345678 → ʀɛʍʏ, LVL 42, Region SAC
+node dist/test/stats.js     # UID 16207002 → BR/CS career+ranked OK
+node dist/test/items.js     # UID 12345678 → 27989 items DB OK
+node dist/test/like.js 616257968 IND 1  # 1/1 sukses, 108 guests tersisa
+node dist/test/all-ai-tools.js
+```
+
+| Test 5 Sep 2026 | Status |
+|-----------------|--------|
+| Login (random credential, token + openId OK) | ✅ pass |
+| Search `folaa` → 10 players, top `Folaa 16778836` | ✅ pass |
+| Profile `12345678` → nickname `ʀɛʍʏ` | ✅ pass |
+| Stats `16207002` (BR career/ranked, CS career/ranked) | ✅ pass |
+| Items `12345678` (27989 items) | ✅ pass |
+| Like `616257968` IND 1/1 | ✅ pass |
+| AI tools (`search_player`, `get_player_items`, `get_player_stats` BR/CS) | ✅ pass (`get_player_profile` UID `7512027025` transient `400`, retry otomatis) |
+
+> Log mentah Mei 2026 di bawah dipertahankan sebagai riwayat.
 
 ---
 

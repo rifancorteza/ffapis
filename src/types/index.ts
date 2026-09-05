@@ -80,6 +80,16 @@ export interface Settings {
   GARENA_CLIENT: GarenaClientConfig;
 }
 
+export interface FreeFireAPIOptions {
+  /** Instance-level OB override, e.g. "OB55". Falls back to settings.yaml when omitted. */
+  obVersion?: string | null;
+}
+
+export interface LikeAPIOptions {
+  /** Instance-level OB override, e.g. "OB55". Falls back to settings.yaml when omitted. */
+  obVersion?: string | null;
+}
+
 export interface ItemDetails {
   id: number;
   name: string;

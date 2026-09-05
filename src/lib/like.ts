@@ -1,10 +1,18 @@
 import axios from 'axios';
 import crypto from 'crypto';
-import { URLS, HEADERS, AE, GARENA_CLIENT } from './constants';
+import { URLS, HEADERS, AE, GARENA_CLIENT, getCommonHeaders, normalizeObVersion } from './constants';
 import { CredentialManager } from './credential-manager';
 import { protoHandler } from './protobuf';
-import type { LikeResult, GarenaTokenResponse, MajorLoginResponse } from '@/types';
+import type { LikeResult, GarenaTokenResponse, MajorLoginResponse, LikeAPIOptions } from '@/types';
 import { getErrorMessage } from '@/types';
+
+type ObVersionParam = string | number | { obVersion?: string | number | null } | null | undefined;
+
+function parseObArg(arg: ObVersionParam): string | null {
+  if (arg === undefined || arg === null) return null;
+  if (typeof arg === 'object') return normalizeObVersion((arg as { obVersion?: string | number | null }).obVersion);
+  return normalizeObVersion(arg as string | number);
+}
 
 /**
  * API client for sending profile likes to a target Free Fire player.
@@ -12,6 +20,35 @@ import { getErrorMessage } from '@/types';
  */
 export class LikeAPI {
   private credentialManagers: Record<string, CredentialManager> = {};
+  public obVersion: string | null = null;
+
+  /**
+   * @param options - Optional instance OB override. Example: `new LikeAPI({ obVersion: 'OB55' })` or `new LikeAPI('OB55')`.
+   */
+  constructor(options?: LikeAPIOptions | string | null) {
+    if (typeof options === 'string') {
+      this.obVersion = normalizeObVersion(options);
+    } else if (options && typeof options === 'object') {
+      this.obVersion = normalizeObVersion(options.obVersion);
+    }
+  }
+
+  /**
+   * Set instance-level OB override (e.g. `like.setObVersion('OB55')`).
+   * Pass `null` to clear and fall back to settings.yaml / env.
+   */
+  setObVersion(version: string | number | null): void {
+    this.obVersion = normalizeObVersion(version);
+  }
+
+  /** Get effective OB version (instance override > env > settings.yaml default). */
+  getObVersion(): string {
+    return getCommonHeaders(null, this.obVersion)['ReleaseVersion'];
+  }
+
+  private _headers(requestOb?: ObVersionParam): Record<string, string> {
+    return getCommonHeaders(parseObArg(requestOb), this.obVersion);
+  }
 
   private _getCredentialManager(region: string): CredentialManager {
     if (!this.credentialManagers[region]) {
@@ -27,7 +64,7 @@ export class LikeAPI {
     return 'https://clientbp.ggblueshark.com';
   }
 
-  private async _login(uid: string, password: string): Promise<{ jwt: string; serverUrl: string; accountId: string } | null> {
+  private async _login(uid: string, password: string, obVersion?: ObVersionParam): Promise<{ jwt: string; serverUrl: string; accountId: string } | null> {
     try {
       const params = new URLSearchParams();
       params.append('uid', uid);
@@ -45,10 +82,11 @@ export class LikeAPI {
 
       const loginPayload = { openid: openId, logintoken: accessToken, platform: '4' };
       const encryptedBody = await protoHandler.encode('MajorLogin.proto', 'request', loginPayload, true);
+      const headers = this._headers(obVersion);
 
       const loginResponse = await axios.post(URLS.MAJOR_LOGIN, encryptedBody, {
         headers: {
-          ...HEADERS.COMMON,
+          ...headers,
           Authorization: 'Bearer',
           'Content-Type': 'application/octet-stream'
         },
@@ -86,23 +124,24 @@ export class LikeAPI {
     return encrypt(payload);
   }
 
-  private async _sendLikeWithGuest(guest: { uid: string; password: string }, targetUid: string, region: string): Promise<{ success: boolean; error?: string }> {
+  private async _sendLikeWithGuest(guest: { uid: string; password: string }, targetUid: string, region: string, obVersion?: ObVersionParam): Promise<{ success: boolean; error?: string }> {
     try {
-      const auth = await this._login(guest.uid, guest.password);
+      const auth = await this._login(guest.uid, guest.password, obVersion);
       if (!auth) return { success: false, error: 'Login failed' };
 
       const serverUrl = auth.serverUrl || this._getBaseUrl(region);
       const payload = this._createLikePayload(targetUid, region);
+      const base = this._headers(obVersion);
       const headers = {
-        'User-Agent': HEADERS.COMMON['User-Agent'],
-        Connection: HEADERS.COMMON['Connection'],
-        'Accept-Encoding': HEADERS.COMMON['Accept-Encoding'],
+        'User-Agent': base['User-Agent'],
+        Connection: base['Connection'],
+        'Accept-Encoding': base['Accept-Encoding'],
         'Content-Type': 'application/octet-stream',
-        Expect: HEADERS.COMMON['Expect'],
+        Expect: base['Expect'],
         Authorization: `Bearer ${auth.jwt}`,
-        'X-Unity-Version': HEADERS.COMMON['X-Unity-Version'],
-        'X-GA': HEADERS.COMMON['X-GA'],
-        ReleaseVersion: HEADERS.COMMON['ReleaseVersion']
+        'X-Unity-Version': base['X-Unity-Version'],
+        'X-GA': base['X-GA'],
+        ReleaseVersion: base['ReleaseVersion']
       };
 
       const response = await axios.post(`${serverUrl}/LikeProfile`, payload, {
@@ -122,16 +161,25 @@ export class LikeAPI {
    * Sends likes to a target player using available guest accounts.
    * @param targetUid - UID of the player to receive likes.
    * @param region - Region code (e.g., 'IND', 'BR').
-   * @param likeCount - Number of likes to send (default 100, max 100 per day).
+   * @param likeCount - Number of likes to send (default 100, max 100 per day). May also be an options object `{ likeCount, obVersion }`.
+   * @param obVersion - Optional OB override for this request only (e.g. 'OB55'). When `likeCount` is an object, use its `obVersion` instead.
    * @returns Summary of the like operation including success and failure counts.
    */
-  async sendLikes(targetUid: string, region: string, likeCount = 100): Promise<LikeResult> {
+  async sendLikes(targetUid: string, region: string, likeCount: number | { likeCount?: number; obVersion?: string | number | null } = 100, obVersion?: ObVersionParam): Promise<LikeResult> {
+    let count = 100;
+    let effectiveOb: ObVersionParam = obVersion;
+    if (typeof likeCount === 'object' && likeCount !== null) {
+      count = likeCount.likeCount ?? 100;
+      if (likeCount.obVersion !== undefined) effectiveOb = likeCount.obVersion;
+    } else if (typeof likeCount === 'number') {
+      count = likeCount;
+    }
     const cm = this._getCredentialManager(region);
     const availableCount = cm.getAvailableCount(targetUid);
     console.log(`[LikeAPI] Available guests for ${targetUid}: ${availableCount}/${cm.getPoolSize()}`);
 
     const maxDaily = 100;
-    const requestedLikes = Math.min(likeCount, maxDaily);
+    const requestedLikes = Math.min(count, maxDaily);
     const plannedLikes = Math.min(requestedLikes, availableCount);
 
     if (plannedLikes === 0) {
@@ -154,7 +202,7 @@ export class LikeAPI {
       const guest = guests[i];
       process.stdout.write(`[LikeAPI] Progress: ${i + 1}/${guests.length} (${successCount}✓ ${failedCount}✗)\r`);
 
-      const result = await this._sendLikeWithGuest(guest, targetUid, region);
+      const result = await this._sendLikeWithGuest(guest, targetUid, region, effectiveOb);
       if (result.success) {
         successCount++;
         cm.markUsed(targetUid, guest.uid);

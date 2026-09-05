@@ -83,3 +83,54 @@ export const URLS: URLSConfig = {
   PLAYER_CS_STATS: paths.PLAYER_CS_STATS
 };
 export const GARENA_CLIENT: GarenaClientConfig = settings.GARENA_CLIENT;
+
+/**
+ * Default OB version from `config/settings.yaml` (`HEADERS_COMMON_RELEASE_VERSION`).
+ * Example: "OB54"
+ */
+export const DEFAULT_OB_VERSION: string = settings.HEADERS.COMMON['ReleaseVersion'];
+
+/**
+ * Normalize user-supplied OB version.
+ * Accepts "OB54", "ob54", "54" -> returns "OB54".
+ * Returns null for empty/invalid input (caller falls back to default).
+ */
+export function normalizeObVersion(input?: string | number | null): string | null {
+  if (input === undefined || input === null) return null;
+  const raw = String(input).trim();
+  if (!raw) return null;
+  const upper = raw.toUpperCase();
+  const digits = upper.startsWith('OB') ? upper.slice(2) : upper;
+  if (!/^\d+$/.test(digits)) return null;
+  return `OB${digits}`;
+}
+
+/**
+ * Resolve effective OB version with priority:
+ * request override > instance override > env (FF_OB_VERSION / FFAPIS_OB_VERSION / FFAPIS_OB) > settings.yaml default.
+ */
+export function resolveObVersion(requestOb?: string | number | null, instanceOb?: string | number | null): string {
+  const fromRequest = normalizeObVersion(requestOb);
+  if (fromRequest) return fromRequest;
+  const fromInstance = normalizeObVersion(instanceOb);
+  if (fromInstance) return fromInstance;
+  const fromEnv =
+    (typeof process !== 'undefined' && process.env
+      ? normalizeObVersion(process.env.FF_OB_VERSION) ||
+        normalizeObVersion(process.env.FFAPIS_OB_VERSION) ||
+        normalizeObVersion(process.env.FFAPIS_OB)
+      : null) || null;
+  if (fromEnv) return fromEnv;
+  return DEFAULT_OB_VERSION;
+}
+
+/**
+ * Build COMMON headers with a specific OB version.
+ * Does not mutate global HEADERS — safe for per-request override.
+ */
+export function getCommonHeaders(obVersion?: string | number | null, instanceOb?: string | number | null): Record<string, string> {
+  return {
+    ...HEADERS.COMMON,
+    ReleaseVersion: resolveObVersion(obVersion, instanceOb),
+  };
+}

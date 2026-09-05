@@ -27,7 +27,7 @@ export const freefireTools: AITool[] = [
     type: 'function',
     function: {
       name: 'search_player',
-      description: 'Search Free Fire players by nickname. Returns matching players with their account ID, nickname, and level.',
+      description: 'Search Free Fire players by nickname. Returns matching players with their account ID, nickname, and level. Optional obVersion (e.g. OB55) overrides the bundled OB for this call.',
       parameters: {
         type: 'object',
         properties: {
@@ -35,6 +35,10 @@ export const freefireTools: AITool[] = [
             type: 'string',
             description: 'Player nickname to search. Minimum 3 characters.',
             minLength: 3
+          },
+          obVersion: {
+            type: 'string',
+            description: 'Optional OB override, e.g. "OB55". Use when library default is outdated. Accepts "55" or "OB55".'
           }
         },
         required: ['keyword']
@@ -52,6 +56,10 @@ export const freefireTools: AITool[] = [
           uid: {
             type: 'string',
             description: 'Target player UID (account ID).'
+          },
+          obVersion: {
+            type: 'string',
+            description: 'Optional OB override, e.g. "OB55".'
           }
         },
         required: ['uid']
@@ -69,6 +77,10 @@ export const freefireTools: AITool[] = [
           uid: {
             type: 'string',
             description: 'Target player UID (account ID).'
+          },
+          obVersion: {
+            type: 'string',
+            description: 'Optional OB override, e.g. "OB55".'
           }
         },
         required: ['uid']
@@ -96,6 +108,10 @@ export const freefireTools: AITool[] = [
             type: 'string',
             description: 'Match type: career, ranked, or normal. Defaults to career.',
             enum: ['career', 'ranked', 'normal']
+          },
+          obVersion: {
+            type: 'string',
+            description: 'Optional OB override, e.g. "OB55".'
           }
         },
         required: ['uid']
@@ -123,6 +139,10 @@ export const freefireTools: AITool[] = [
             description: 'Number of likes to send. Defaults to 100, max 100.',
             minimum: 1,
             maximum: 100
+          },
+          obVersion: {
+            type: 'string',
+            description: 'Optional OB override, e.g. "OB55".'
           }
         },
         required: ['targetUid', 'region']
@@ -144,6 +164,10 @@ export const freefireTools: AITool[] = [
           nickname: {
             type: 'string',
             description: 'Optional nickname. A random one is generated if omitted.'
+          },
+          obVersion: {
+            type: 'string',
+            description: 'Optional OB override, e.g. "OB55".'
           }
         },
         required: ['region']
