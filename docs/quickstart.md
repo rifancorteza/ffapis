@@ -6,6 +6,8 @@
 npm install ffapis
 ```
 
+Requires Node.js >= 18.
+
 ## First API Call
 
 ```ts
@@ -13,7 +15,7 @@ import { FreeFireAPI } from 'ffapis';
 
 const api = new FreeFireAPI();
 
-// Search player
+// Search players
 const players = await api.searchAccount('FannBot');
 console.log(players);
 
@@ -28,13 +30,15 @@ const cs = await api.getPlayerStats('7512027025', 'cs', 'career');
 
 ## Auth Flow
 
-Auto-managed. First API call triggers:
-1. Load random credential from `config/credentials/{region}.yaml`
-2. Garena guest token request
-3. MajorLogin protobuf encode → POST → decode
-4. Session cached for subsequent calls
+Automatic. The first API call:
 
-Manual login if needed:
+1. Loads a random credential from `config/credentials/{region}.yaml`
+2. Requests a Garena guest token
+3. Encodes MajorLogin via Protobuf → POST → decode
+4. Caches the session for subsequent calls
+
+To use your own credential:
+
 ```ts
 await api.login('uid', 'password');
 ```

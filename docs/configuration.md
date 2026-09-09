@@ -2,7 +2,7 @@
 
 ## `config/settings.yaml`
 
-Core constants. **Update OB version when Free Fire updates.**
+Core constants. **Update the OB version when Free Fire updates.**
 
 ```yaml
 AE_MAIN_KEY: "Yg&tc%DEuh6%Zc^8"
@@ -19,26 +19,26 @@ GARENA_CLIENT_ID: "100067"
 GARENA_CLIENT_SECRET: "..."
 ```
 
-## OB Override Tanpa Update Library (v1.6.0+)
+## OB Override (No Library Update Needed)
 
-Kalau game sudah pindah OB tapi `settings.yaml` belum diupdate, override langsung:
+If the game moved to a new OB but `settings.yaml` still has the old one, override it directly:
 
 ```ts
-// Per-request
+// Per request (highest priority)
 await api.searchAccount('nick', 'OB55');
 
-// Per-instance
+// Per instance (applies to all requests from it)
 const api = new FreeFireAPI(null, { obVersion: 'OB55' });
 
-// Via env (tanpa ubah kode)
+// Via env (no code changes)
  // FF_OB_VERSION=OB55 npm test
- // FFAPIS_OB_VERSION / FFAPIS_OB juga didukung
+ // FFAPIS_OB_VERSION / FFAPIS_OB also supported
 ```
 
-Normalisasi otomatis: `"55"` → `"OB55"`, `"ob55"` → `"OB55"`.
-Prioritas: request > instance > env > `settings.yaml`.
+Auto-normalized: `"55"` → `"OB55"`, `"ob55"` → `"OB55"`.
+Priority: request > instance > env > `settings.yaml`.
 
-Helpers yang diekspor:
+Exported helpers:
 
 ```ts
 import { DEFAULT_OB_VERSION, normalizeObVersion, resolveObVersion, getCommonHeaders } from 'ffapis';
@@ -46,7 +46,7 @@ import { DEFAULT_OB_VERSION, normalizeObVersion, resolveObVersion, getCommonHead
 
 ## Credentials
 
-### File: `config/credentials/{region}.yaml`
+File: `config/credentials/{region}.yaml`
 
 ```yaml
 - UID: "123456789"
@@ -55,18 +55,16 @@ import { DEFAULT_OB_VERSION, normalizeObVersion, resolveObVersion, getCommonHead
   PASSWORD: "xyz789"
 ```
 
-### Auto-rotate
-Random credential selected per API call. Used credentials tracked per target to prevent reuse.
+A random credential is picked per API call. Used credentials are tracked per target to prevent reuse.
 
 ## Regions
 
 Supported: `IND`, `SG`, `BR`, `US`, `RU`, `TH`, `VN`, `TW`, `ME`, `CIS`, `BD`
 
-**Note:** ID, PK do NOT support guest registration.
+**Note:** ID and PK do NOT support guest registration.
 
 ## Custom Credentials (Optional)
 
-Pass directly:
 ```ts
 await api.login('uid', 'password');
 ```

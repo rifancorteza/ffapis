@@ -1,6 +1,6 @@
 {
   "name": "ffapis",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "A powerful TypeScript/Node.js library to interact with Garena Free Fire API using Protobuf.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

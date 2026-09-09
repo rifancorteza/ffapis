@@ -1,17 +1,17 @@
 # Full Testing
 
 **Date:** 5 September 2026
-**Version:** `v1.6.0` (fitur OB spesifik per-request)
+**Version:** `v3.0.1` (per-request OB override)
 **Default OB:** `OB54` (`config/settings.yaml`)
 
 ---
 
-## 0. OB-Version Override Test (Baru v1.6.0)
+## 0. OB-Version Override Test
 
 ```bash
 npm run test:ob
 npm run test:ob:live
-# atau: node dist/test/ob-version.js --live
+# or: node dist/test/ob-version.js --live
 ```
 
 ### Results — 5 September 2026
@@ -23,21 +23,21 @@ npm run test:ob:live
 | `LikeAPI` instance (`ctor`, `setObVersion`, `getObVersion`) | ✅ pass |
 | AI tools schema `obVersion` (6 tools) | ✅ pass |
 | `FreeFireAIToolHandler({ obVersion })` | ✅ pass |
-| Live search dengan OB eksplisit `OB54` (`folaa` → 10 players, top `Folaa 16778836`) | ✅ pass |
+| Live search with explicit OB `OB54` (`folaa` → 10 players, top `Folaa 16778836`) | ✅ pass |
 
 **Total: 32/32 pass (unit) + live pass.**
 
-Contoh pakai:
+Usage examples:
 
 ```ts
-await api.searchAccount('FannBot', 'OB55'); // library OB54 tetap bisa request OB55
+await api.searchAccount('FannBot', 'OB55'); // OB54 library can still request OB55
 const api55 = new FreeFireAPI(null, { obVersion: 'OB55' });
-FF_OB_VERSION=OB55 npm test // tanpa ubah kode
+FF_OB_VERSION=OB55 npm test // no code changes
 ```
 
 ---
 
-## Re-verifikasi 5 September 2026 (Non-AI 6/6 + AI)
+## Re-verified 5 September 2026 (Non-AI 6/6 + AI)
 
 ```bash
 npm run build
@@ -58,9 +58,9 @@ node dist/test/all-ai-tools.js
 | Stats `16207002` (BR career/ranked, CS career/ranked) | ✅ pass |
 | Items `12345678` (27989 items) | ✅ pass |
 | Like `616257968` IND 1/1 | ✅ pass |
-| AI tools (`search_player`, `get_player_items`, `get_player_stats` BR/CS) | ✅ pass (`get_player_profile` UID `7512027025` transient `400`, retry otomatis) |
+| AI tools (`search_player`, `get_player_items`, `get_player_stats` BR/CS) | ✅ pass (`get_player_profile` UID `7512027025` transient `400`, auto-retry) |
 
-> Log mentah Mei 2026 di bawah dipertahankan sebagai riwayat.
+> Raw May 2026 logs below are kept as history (verbatim, including the AI's original Indonesian reply).
 
 ---
 

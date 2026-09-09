@@ -4,7 +4,7 @@
 
 | Error | Cause | Fix |
 |-------|-------|-----|
-| `401 Unauthorized` | Session expired / OB version mismatch | Update `HEADERS_COMMON_RELEASE_VERSION` in `config/settings.yaml` |
+| `401 Unauthorized` | Session expired / OB version mismatch | Update `HEADERS_COMMON_RELEASE_VERSION` in `config/settings.yaml` (see [`configuration.md`](./configuration.md)) |
 | `400 Bad Request` | Protobuf schema changed | Update `.proto` files from game dump |
 | `ECONNRESET` | Server rate limit / unstable | Retry after delay, use fresh credential |
 | `No credentials available` | Missing credential YAML | Add accounts to `config/credentials/{region}.yaml` |
@@ -13,30 +13,24 @@
 
 ## OB Version Update
 
-When Free Fire updates to new OB:
-1. Edit `config/settings.yaml`:
-   ```yaml
-   HEADERS_COMMON_RELEASE_VERSION: "OB54"  # was OB53
-   ```
-2. Run tests:
-   ```bash
-   npm run build
-   npm run test:all
-   ```
+When Free Fire updates to a new OB, set `HEADERS_COMMON_RELEASE_VERSION` in `config/settings.yaml` (or pass `obVersion` per request — see [`configuration.md`](./configuration.md)), then:
+
+```bash
+npm run build
+npm test
+```
 
 ## Debug
 
-Enable verbose logging by checking `src/test/*.ts` scripts. Each shows full API flow.
-
-### Quick Test Commands
+Each script in `src/test/` shows the full API flow.
 
 ```bash
-npm run test:all          # All tests
-npm run test:search       # Search only
-npm run test:profile      # Profile only
-npm run test:stats        # Stats only
-npm run test:items        # Items only
-npm run test:register     # Register test
-npm run test:like 123 IND 5  # Send 5 likes
-npm run test:groq-ai      # AI tool calling test
+npm test                # All tests
+npm run test:search     # Search only
+npm run test:profile    # Profile only
+npm run test:stats      # Stats only
+npm run test:items      # Items only
+npm run test:register   # Register test
+npm run test:like       # Send likes (pass args: uid region count)
+npm run test:groq-ai    # AI tool calling test
 ```

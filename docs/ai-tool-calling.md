@@ -1,14 +1,13 @@
 # AI Tool Calling
 
-Built-in JSON Schema tools + handler for LLM integration.
+Built-in JSON Schema tools + handler for LLM integration. All tools accept an optional `obVersion`.
 
 ## Tool Schemas
 
 ```ts
 import { freefireTools } from 'ffapis';
 
-// freefireTools = OpenAI-compatible function schemas
-// 6 tools: search_player, get_player_profile, get_player_items, get_player_stats, send_likes, register_account
+// freefireTools = OpenAI-compatible function schemas (6 tools)
 ```
 
 | Tool | Params |
@@ -43,4 +42,4 @@ const results = await handler.executeMany([toolCall1, toolCall2]);
 npm run test:groq-ai
 ```
 
-See `src/test/groq-ai-tool-calling.ts` for the full streaming implementation. Don't forget to set the ENV! (I used the Groq console for testing; you can get it from https://console.groq.com/playground?model=openai/gpt-oss-120b)
+See `src/test/groq-ai-tool-calling.ts` for the full streaming implementation. Set your Groq API key in ENV first (get one at https://console.groq.com/playground?model=openai/gpt-oss-120b).
