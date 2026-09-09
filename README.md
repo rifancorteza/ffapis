@@ -1,8 +1,8 @@
 <div align="center">
-  <img src="https://z1.storage.malvo.app/bucket/repo/ffapis.png" width="100%" alt="ffapis" />
+  <img src="https://res.cloudinary.com/b6ymaclw/image/upload/v1788970865/banner.webp" width="100%" alt="ffapis" />
 </div>
 
-# FF Apis `v1.6.0`
+# FF Apis `v3.0.0`
 
 Integrate Free Fire player data into your apps, bots, or AI agents. Search players, fetch profiles/stats/items, send likes, and register accounts — with auto-managed guest authentication and built-in AI tool calling for LLMs.
 

@@ -1,6 +1,6 @@
 {
   "name": "ffapis",
-  "version": "1.6.0",
+  "version": "3.0.0",
   "description": "A powerful TypeScript/Node.js library to interact with Garena Free Fire API using Protobuf.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -56,16 +56,16 @@
     "nodejs",
     "typescript"
   ],
-  "author": "senoseya",
+  "author": "rifancorteza",
   "license": "GPL-3.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/senoseya/ffapis.git"
+    "url": "git+https://github.com/rifancorteza/ffapis.git"
   },
   "bugs": {
-    "url": "https://github.com/senoseya/ffapis/issues"
+    "url": "https://github.com/rifancorteza/ffapis/issues"
   },
-  "homepage": "https://github.com/senoseya/ffapis#readme",
+  "homepage": "https://github.com/rifancorteza/ffapis#readme",
   "dependencies": {
     "axios": "^1.6.0",
     "js-yaml": "^4.1.0",
